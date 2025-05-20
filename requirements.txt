@@ -1,1 +1,4 @@
+Nuitka==2.7.3
+ordered-set==4.1.0
 TKinterModernThemes==1.10.4
+zstandard==0.23.0

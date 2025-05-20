@@ -5,7 +5,7 @@ import os
 import TKinterModernThemes as TKMT
 
 CSV_FILE = 'data.csv'
-WINDOW_WIDTH = 300
+WINDOW_WIDTH = 500
 WINDOW_HEIGHT = 250
 WINDOW_X = 100 # Initial X position
 WINDOW_Y = 100 # Initial Y position
@@ -20,8 +20,8 @@ def load_csv(filepath):
     try:
         with open(filepath, mode='r', encoding='utf-8') as file:
             reader = csv.reader(file)
-            # Optionally skip header row if your CSV has one
-            # next(reader)
+            # Skip header row
+            next(reader)
             for row in reader:
                 data.append(row)
     except Exception as e:
@@ -105,9 +105,14 @@ class App(TKMT.ThemedTKinterFrame):
         self.root.bind('<ButtonPress-1>', self.window_move_start)
         self.root.bind('<B1-Motion>', self.window_on_move)
         
-        self.outer_frame = self.addLabelFrame("Missing Item Barcodes")
-        self.outer_frame.Entry(self.query)
-        exitButton = self.outer_frame.Button("Close", self.root.destroy)
+        self.title_bar = self.addFrame(name="title_bar")
+        title_text = self.title_bar.Label(text="Missing Item Barcodes", size=8, row=0, col=0)
+        exitButton = self.title_bar.Button("x", self.root.destroy, row=0, col=1, padx=2, pady=2)
+                        
+        self.outer_frame = self.addLabelFrame("Items")
+        search_box = self.outer_frame.Entry(self.query)
+        search_box.focus_set() # Set focus on startup
+        
         
         self.run()
         
