@@ -4,4 +4,4 @@
 
 # BUILD
 
-nuitka --onefile --enable-plugin=tk-inter --include-package-data=TKinterModernThemes main.py
+nuitka --onefile --enable-plugin=tk-inter --include-package-data=TKinterModernThemes --output-filename=missing-barcode main.py

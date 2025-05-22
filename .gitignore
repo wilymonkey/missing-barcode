@@ -1,2 +1,6 @@
 main.onefile-build/
 main.bin
+main.build/
+main.dist/
+dist/
+missing-barcode

@@ -1,131 +1,104 @@
 import tkinter as tk
-from tkinter import Variable, ttk
+from tkinter import StringVar, Variable, ttk
 import csv
 import os
 import TKinterModernThemes as TKMT
+from typing import Tuple
 
 CSV_FILE = 'data.csv'
-WINDOW_WIDTH = 500
+WINDOW_WIDTH = 200
 WINDOW_HEIGHT = 250
 WINDOW_X = 100 # Initial X position
 WINDOW_Y = 100 # Initial Y position
 
-def load_csv(filepath):
+def load_data(filepath) -> Tuple[list[str], list[list[str]]]:
     """Loads data from a CSV file."""
-    data = []
+    headers = []
+    data = []    
+    
     if not os.path.exists(filepath):
         print(f"Error: CSV file not found at {filepath}")
-        return data # Return empty list if file not found
-
+        return (headers, data)
+    
     try:
         with open(filepath, mode='r', encoding='utf-8') as file:
             reader = csv.reader(file)
-            # Skip header row
-            next(reader)
-            for row in reader:
-                data.append(row)
+            headers = next(reader)
+            data = [row for row in reader]
     except Exception as e:
         print(f"Error loading CSV file: {e}")
-    return data
+        
+    return (headers, data)
 
-# Load data when the script starts
-csv_data = load_csv(CSV_FILE)
-
-# --- GUI Functions ---
-def search_data(query, data):
+def search_data(query: str, data: list[list[str]]) -> list[list[str]]:
     """Searches the loaded data for rows containing the query."""
+    
     if not query:
-        return [] # Return empty list if query is empty
+        return [] 
+    
     query = query.lower()
     results = []
+    
     for row in data:
-        # Check if the query is in any cell of the row (case-insensitive)
-        if any(query in str(cell).lower() for cell in row):
+        if query in row[0].lower():
             results.append(row)
     return results
 
-def update_results(event=None):
-    """Updates the results listbox based on the search entry."""
-    query = search_entry.get()
-    matches = search_data(query, csv_data)
-
-    # Clear current results
-    results_listbox.delete(0, tk.END)
-
-    # Display new results
-    if matches:
-        for match in matches:
-            # Join the row elements into a single string for display
-            results_listbox.insert(tk.END, ", ".join(match))
-    else:
-        if query:
-            results_listbox.insert(tk.END, "No matches found.")
-        else:
-            results_listbox.insert(tk.END, "Type to search...")
-
-# # Search Entry Field
-# search_entry = tk.Entry(root, width=40)
-# search_entry.pack(pady=10, padx=10, fill=tk.X)
-# search_entry.focus_set() # Set focus to the entry field on startup
-
-# # Bind the update_results function to key releases in the entry field
-# search_entry.bind('<KeyRelease>', update_results)
-
-# # Results Listbox with Scrollbar
-# results_frame = tk.Frame(root)
-# results_frame.pack(pady=0, padx=10, fill=tk.BOTH, expand=True)
-
-# results_scrollbar = tk.Scrollbar(results_frame)
-# results_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-# results_listbox = tk.Listbox(results_frame, yscrollcommand=results_scrollbar.set)
-# results_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-# results_scrollbar.config(command=results_listbox.yview)
-
-# # Initial prompt in the listbox
-# results_listbox.insert(tk.END, "Type to search...")
-
-# # Close Button
-# close_button = tk.Button(root, text="Close", command=close_window)
-# close_button.pack(pady=5)
-
-# # Run the application
-# root.mainloop()
-
-
 class App(TKMT.ThemedTKinterFrame):
+    headers, data = load_data(CSV_FILE)
     
     def __init__(self):
         super().__init__("Missing Barcodes", "azure", "light")
-        self.query = Variable()    
-        self.root.overrideredirect(True)
         self.root.attributes('-topmost', True)
         self.root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}+{WINDOW_X}+{WINDOW_Y}")
-        self.root.bind('<ButtonPress-1>', self.window_move_start)
-        self.root.bind('<B1-Motion>', self.window_on_move)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight=1)
+
+        self.main_frame = self.addFrame('main_frame', sticky='nsew', padx=5, pady=5)
         
-        self.title_bar = self.addFrame(name="title_bar")
-        title_text = self.title_bar.Label(text="Missing Item Barcodes", size=8, row=0, col=0)
-        exitButton = self.title_bar.Button("x", self.root.destroy, row=0, col=1, padx=2, pady=2)
-                        
-        self.outer_frame = self.addLabelFrame("Items")
-        search_box = self.outer_frame.Entry(self.query)
+        self.query = StringVar()
+        search_box = self.main_frame.Entry(self.query, row=0, col=0)
+        search_box.bind('<KeyRelease>', self.update_results)
         search_box.focus_set() # Set focus on startup
+                        
+        self.results_frame = self.main_frame.addLabelFrame("Items", sticky='nsew')
+        self.results_frame.master.grid_columnconfigure(0, weight=1)
+        self.results_table = ttk.Treeview(self.results_frame.master, columns=self.headers, show='headings')
+        self.results_table.grid(row=0, column=0, sticky="nsew")
         
+        for record in self.headers:
+            self.results_table.column(record, anchor=tk.CENTER, width=100, minwidth=80, stretch=False)
+            self.results_table.heading(record, text=record, anchor=tk.CENTER)
+        self.results_table.column(self.headers[0], stretch=True)
         
+        for record in self.data:
+            self.results_table.insert(parent='', index='end', values=record)
+            
+        self.scrollbar = ttk.Scrollbar(
+            self.results_frame.master,
+            orient=tk.VERTICAL,
+            command=self.results_table.yview,
+        )
+        self.scrollbar.grid(row=0, column=1, sticky='ns')
+        self.results_table.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.root.resizable(True, True)
+        self.makeResizable()
         self.run()
         
-    def window_move_start(self, event):
-        """Records the starting position for window dragging."""
-        self.move_start_x = event.x
-        self.move_start_y = event.y
+    def update_results(self, _):
+        """Updates the results treeview based on the search entry."""
+        query = self.query.get()
+        matches = search_data(query, self.data)
+        self.results_table.delete(*self.results_table.get_children())
 
-    def window_on_move(self, event):
-        """Updates the window position while dragging."""
-        x = self.root.winfo_x() + (event.x - self.move_start_x)
-        y = self.root.winfo_y() + (event.y - self.move_start_y)
-        self.root.geometry(f"+{x}+{y}")
+        if matches:
+            for record in matches:
+                self.results_table.insert(parent='', index='end', values=record)
+        else:
+            if not query:
+                for record in self.data:
+                    self.results_table.insert(parent='', index='end', values=record)
 
 
 App()

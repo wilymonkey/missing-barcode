@@ -1,0 +1,69 @@
+name: Build and Release with Nuitka
+
+on:
+  push:
+    branch: stable
+
+env:
+  PYTHON_VERSION: '3.13'
+  PROJECT_NAME: 'missing-barcode'
+  MAIN_SCRIPT: 'main.py'
+
+jobs:
+  build-windows:
+    name: Build Windows Executable
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Get pip cache dir
+      id: pip-cache
+      shell: bash
+      run: |
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.pip-cache.outputs.dir }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache Nuitka builds
+      uses: actions/cache@v4
+      with:
+        path: dist
+        key: ${{ runner.os }}-nuitka-${{ hashFiles('**/*.py') }}-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-nuitka-
+
+    - name: Install dependencies
+      run: |
+        pip install nuitka
+        pip install -r requirements.txt
+
+    - name: Build with Nuitka
+      run: |
+        python -m nuitka --standalone --onefile --windows-icon-from-ico=barcode.ico --output-dir=dist --windows-disable-console --enable-plugin=tk-inter --include-package-data=TKinterModernThemes --output-filename=${{ env.PROJECT_NAME }} ${{ env.MAIN_SCRIPT }}
+
+    - name: Create release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: Release ${{ github.ref_name }}
+        tag_name: ${{ github.ref_name }}
+        body: "Windows executable built with Nuitka"
+        files: |
+          dist/${{ env.PROJECT_NAME }}.exe
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
